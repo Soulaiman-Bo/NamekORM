@@ -1,0 +1,15 @@
+{
+    "name": "youcode/namek-orm",
+    "autoload": {
+        "psr-4": {
+            "Youcode\\NamekOrm\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "soulaiman-bo",
+            "email": "bouhlal.soulaiman@gmail.com"
+        }
+    ],
+    "require": {}
+}

@@ -63,20 +63,39 @@ class WhereOperators extends SQL
         SQL::$queryStatment .= " LIKE " .  $field;
         return $this;
     }
+    public function isNot($field)
+    {
+        SQL::$queryStatment .= " IS NOT " .  $field;
+        return $this;
+    }
 }
 
 
 
 class SQL
 {
-    private $connection;
+    private $pdo;
     private $tableName;
     protected static  $queryStatment;
     private $currentStatmentType;
+    private $paramstoBind = [];
 
-    public function __construct(string $connection)
+    public function __construct()
     {
-        $this->connection = $connection;
+        // Connect to your database (modify these parameters accordingly)
+        $host = 'localhost';
+        $dbname = 'ORM';
+        $username = 'root';
+        $password = '';
+
+        try {
+            $pdo = new PDO("mysql:host=$host;dbname=$dbname", $username, $password);
+            $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        } catch (PDOException $e) {
+            die("Error: " . $e->getMessage());
+        }
+
+        $this->pdo = $pdo;
         return $this;
     }
 
@@ -110,19 +129,6 @@ class SQL
             return false;
         }
 
-        // Connect to your database (modify these parameters accordingly)
-        $host = 'localhost';
-        $dbname = 'ORM';
-        $username = 'root';
-        $password = '';
-
-        try {
-            $pdo = new PDO("mysql:host=$host;dbname=$dbname", $username, $password);
-            $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        } catch (PDOException $e) {
-            die("Error: " . $e->getMessage());
-        }
-
         // If $data is a single associative array, convert it to an array of arrays
         if (!is_array(reset($data))) {
             $data = [$data];
@@ -133,8 +139,9 @@ class SQL
         $placeholders = ':' . implode(', :', array_keys($data[0]));
         $sql = "INSERT INTO $tableName ($columns) VALUES ($placeholders)";
         SQL::$queryStatment = $sql;
+        
         // Prepare the statement
-        $stmt = $pdo->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
 
         foreach ($data as $row) {
             // Bind parameters
@@ -160,19 +167,6 @@ class SQL
         }
         $this->currentStatmentType = "update";
 
-          // Connect to your database (modify these parameters accordingly)
-          $host = 'localhost';
-          $dbname = 'ORM';
-          $username = 'root';
-          $password = '';
-  
-          try {
-              $pdo = new PDO("mysql:host=$host;dbname=$dbname", $username, $password);
-              $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-          } catch (PDOException $e) {
-              die("Error: " . $e->getMessage());
-          }
-
         $args = array();
 
         foreach ($data as $key => $value) {
@@ -181,10 +175,10 @@ class SQL
 
         $sql = "UPDATE $tableName SET " .  implode(',', $args) . " WHERE id = :id";
 
-        
+
         SQL::$queryStatment = $sql;
 
-        $stmt = $pdo->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
 
         foreach ($data as $key => $value) {
             $paramType = $this->getPDODataType($value);
@@ -199,8 +193,19 @@ class SQL
         return $this;
     }
 
-    public function delete(){
-        
+    public function delete($tableName)
+    {
+        // DELETE FROM table_name WHERE condition;
+        if ($this->currentStatmentType != null) {
+            throw new InvalidOrder("you can not delete if you are making another operation");
+        }
+
+        $this->currentStatmentType = "delete";
+        $sql = "DELETE FROM $tableName";
+
+        SQL::$queryStatment = $sql;
+
+        return $this;
     }
 
 
@@ -215,6 +220,7 @@ class SQL
 
     public function where(string $field)
     {
+
         $operators = new WhereOperators();
 
         SQL::$queryStatment .= " WHERE " . $field;
@@ -235,13 +241,11 @@ class SQL
                 } else {
                     $orderKeyword = $oder;
                 }
-
                 SQL::$queryStatment .= "$columns[$i] $orderKeyword";
             }
-
             SQL::$queryStatment = rtrim(SQL::$queryStatment, ',');
-        } elseif (gettype($columns) == 'string') {
 
+        } elseif (gettype($columns) == 'string') {
             SQL::$queryStatment  .= " $columns $oder";
         }
 
@@ -257,6 +261,11 @@ class SQL
         // return $result;
 
         echo SQL::$queryStatment . ";";
+
+        $stmt = $this->pdo->prepare(SQL::$queryStatment . ";");
+
+        $stmt->execute();
+        $this->pdo = null;        
     }
 
     private function getPDODataType($value)
@@ -276,32 +285,32 @@ class SQL
                 return PDO::PARAM_STR; // Default to string for other types
         }
     }
-
-
 }
 
 
 
 
-$sql = new SQL("connection");
+$sql = new SQL();
 
 //$sql->select(["name"])->from("users")->where("ID")->between(15, 50)->orderBy("name", "DESC")->save();
 
 
-// $sql->insertInto("users", [
-//     [
-//         "firstname" => "lahsen",
-//         "lastname" => "sdff",
-//         "age" => 10,
-//         "number" => 0613525
-//     ],
-//     [
-//         "firstname" => "merjani",
-//         "lastname" => "gf",
-//         "age" => 25,
-//         "number" => 0613525
-//     ],
+$sql->insertInto("users", [
+    [
+        "firstname" => "lahssdfgsen",
+        "lastname" => "sdff",
+        "age" => 10,
+        "number" => 0613525
+    ],
+    [
+        "firstname" => "mersdsdgjani",
+        "lastname" => "gf",
+        "age" => 25,
+        "number" => 0613525
+    ],
 
-// ])->save();
+])->save();
 
-$sql->update("users", ["firstname" => "Massoud", "lastname" => "lmanhous"], 2)->save();
+//$sql->update("users", ["firstname" => "Massoud", "lastname" => "lmanhous"], 2)->save();
+
+//$sql->delete("users")->where("role")->isNot("freelancer")->save();
